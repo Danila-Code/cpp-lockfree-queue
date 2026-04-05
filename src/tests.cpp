@@ -1,15 +1,16 @@
-#include <iostream>
+#define CATCH_CONFIG_MAIN
+
+#include <catch2/catch.hpp>
 
 #include "../include/lock-free-queue.h"
 
-int main() {
+TEST_CASE("Test empty", "[empty]") {
     LockFreeQueue<int> q;
+    REQUIRE(q.empty());
 
-    const size_t count = 10;
+    q.push(1);
+    REQUIRE(!q.empty());
 
-    for (size_t i = 0; i < count; ++i) {
-        q.push(i);
-    }
-
-    std::cout << "Hello" << std::endl;
+    q.pop();
+    REQUIRE(q.empty());
 }

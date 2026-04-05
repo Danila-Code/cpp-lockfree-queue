@@ -11,6 +11,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# catch2
+find_package(Catch2 REQUIRED)
+
 # includes 
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -29,6 +32,10 @@ file(GLOB_RECURSE PROJECT_SOURCES
 add_executable(
     LockFreeQueue
     ${PROJECT_SOURCES}
+)
+
+target_link_libraries(LockFreeQueue PRIVATE
+    Catch2::Catch2WithMain
 )
 
 target_include_directories(LockFreeQueue PRIVATE
