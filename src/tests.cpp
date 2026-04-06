@@ -1,6 +1,8 @@
 #define CATCH_CONFIG_MAIN
 
 #include <catch2/catch.hpp>
+#include <thread>
+#include <vector>
 
 #include "../include/lock-free-queue.h"
 
@@ -73,5 +75,48 @@ TEST_CASE("test pop method", "[pop]") {
 
         REQUIRE(!empty_ptr);
         REQUIRE(error);
+    }
+}
+
+TEST_CASE("multithreads", "[multithreads]") {
+    const int NUM_THREADS = 10;
+    const int ITEMS = 1000;
+
+    LockFreeQueue<int> q;
+    std::atomic<int> counter(0);
+
+    auto consume = [&q, &counter]() {
+        int received = 0;
+        while (received < NUM_THREADS * ITEMS) {
+            std::shared_ptr<int> res = q.pop();
+            if (res) {
+                ++received;
+                counter.fetch_add(*res, std::memory_order_relaxed);
+            }
+        }
+        REQUIRE(q.empty());
+    };
+
+    auto produce = [&q]() {
+        for (int i = 0; i < ITEMS; ++i) {
+            q.push(i);
+        }
+    };
+
+    SECTION("multiple producers, single consumer") {
+        std::vector<std::thread> producers;
+        for (int i = 0; i < NUM_THREADS; ++i) {
+            producers.emplace_back(produce);
+        }
+
+        std::thread consumer(consume);
+
+        for (auto& t : producers) {
+            t.join();
+        }
+
+        consumer.join();
+
+        REQUIRE(counter.load() == NUM_THREADS * (ITEMS - 1) * ITEMS / 2);
     }
 }
