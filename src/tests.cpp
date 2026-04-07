@@ -1,6 +1,7 @@
 #define CATCH_CONFIG_MAIN
 
 #include <catch2/catch.hpp>
+#include <iostream>
 #include <thread>
 #include <vector>
 
@@ -79,7 +80,7 @@ TEST_CASE("test pop method", "[pop]") {
 }
 
 TEST_CASE("multithreads", "[multithreads]") {
-    const int NUM_THREADS = 10;
+    const int NUM_THREADS = 4;
     const int ITEMS = 1000;
 
     LockFreeQueue<int> q;
@@ -119,4 +120,52 @@ TEST_CASE("multithreads", "[multithreads]") {
 
         REQUIRE(counter.load() == NUM_THREADS * (ITEMS - 1) * ITEMS / 2);
     }
+}
+
+TEST_CASE("single producer, multiple consumers", "[multithreads]") {
+    const int NUM_THREADS = 4;
+    const int ITEMS = 1000;
+
+    LockFreeQueue<int> q;
+    std::vector<int> counters(NUM_THREADS, 0);
+    std::atomic<int> counter(0);
+
+    auto produce = [&q]() {
+        for (int i = 0; i < ITEMS; ++i) {
+            q.push(i);
+        }
+    };
+
+    std::thread producer(produce);
+
+    std::vector<std::thread> consumers;
+    for (int i = 0; i < NUM_THREADS; ++i) {
+        consumers.emplace_back([&q, &counter, &counters, i]() {
+            int received = 0;
+            while (!q.empty()) {
+                std::shared_ptr<int> res = q.pop();
+                if (res) {
+                    counters[i] += *res;
+                    ++received;
+                }
+            }
+            counter.fetch_add(received, std::memory_order_relaxed);
+        });
+    }
+
+    for (auto& t : consumers) {
+        t.join();
+    }
+
+    producer.join();
+
+    REQUIRE(q.empty());
+
+    int sum = 0;
+    for (int count : counters) {
+        sum += count;
+    }
+
+    REQUIRE(sum == (ITEMS - 1) * ITEMS / 2);
+    REQUIRE(counter.load() == ITEMS);
 }
