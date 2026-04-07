@@ -61,7 +61,7 @@ public:
 
             if (current_head == current_tail) {
                 if (!head_next) {
-                    throw std::runtime_error("Queue no empty");
+                    return nullptr;
                 } else {
                     tail_.compare_exchange_strong(current_tail, head_next);
                 }

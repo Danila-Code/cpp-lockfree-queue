@@ -65,17 +65,13 @@ TEST_CASE("test pop method", "[pop]") {
         REQUIRE(push_element == *pop_element);
     }
 
-    SECTION("throw exception") {
+    SECTION("empty queue pop") {
         std::shared_ptr<int> empty_ptr;
-        bool error = false;
-        try {
-            empty_ptr = q.pop();
-        } catch (const std::runtime_error& e) {
-            error = true;
-        }
+
+        empty_ptr = q.pop();
 
         REQUIRE(!empty_ptr);
-        REQUIRE(error);
+        REQUIRE(q.empty());
     }
 }
 
