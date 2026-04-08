@@ -24,11 +24,8 @@ public:
     }
 
     ~LockFreeQueue() noexcept {
-        try {
-            while (!empty()) {
-                pop();
-            }
-        } catch (const std::exception& e) {
+        while (!empty()) {
+            pop();
         }
 
         delete head_.load();
@@ -55,20 +52,23 @@ public:
         std::shared_ptr<T> res;
 
         while (true) {
-            Node* current_head = head_.load();
-            Node* current_tail = tail_.load();
-            Node* head_next = current_head->next.load();
+            Node* current_head = head_.load(std::memory_order_acquire);
+            Node* current_tail = tail_.load(std::memory_order_acquire);
+            Node* head_next = current_head->next.load(std::memory_order_acquire);
 
-            if (current_head == current_tail) {
-                if (!head_next) {
-                    return nullptr;
+            if (current_head == head_.load(std::memory_order_relaxed)) {
+                if (current_head == current_tail) {
+                    if (!head_next) {
+                        return nullptr;
+                    } else {
+                        tail_.compare_exchange_strong(current_tail, head_next);
+                    }
                 } else {
-                    tail_.compare_exchange_strong(current_tail, head_next);
-                }
-            } else {
-                res = head_next->data;
-                if (head_.compare_exchange_strong(current_head, head_next)) {
-                    break;
+                    res = head_next->data;
+                    if (head_.compare_exchange_strong(current_head, head_next)) {
+                        delete current_head;
+                        break;
+                    }
                 }
             }
         }
