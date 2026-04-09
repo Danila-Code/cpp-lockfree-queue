@@ -36,14 +36,24 @@ public:
         Node* new_node = new Node(value);
 
         while (true) {
-            Node* current_tail = tail_.load();
+            Node* current_tail = tail_.load(std::memory_order_acquire);
             Node* null_node = nullptr;
 
-            if (tail_.load()->next.compare_exchange_strong(null_node, new_node)) {
-                tail_.compare_exchange_strong(current_tail, new_node);
+            if (tail_.load(std::memory_order_acquire)
+                    ->next.compare_exchange_strong(null_node,
+                                                   new_node,
+                                                   std::memory_order_release,
+                                                   std::memory_order_relaxed)) {
+                tail_.compare_exchange_strong(current_tail,
+                                              new_node,
+                                              std::memory_order_release,
+                                              std::memory_order_relaxed);
                 return;
             } else {
-                tail_.compare_exchange_strong(current_tail, current_tail->next.load());
+                tail_.compare_exchange_strong(current_tail,
+                                              current_tail->next.load(std::memory_order_acquire),
+                                              std::memory_order_release,
+                                              std::memory_order_relaxed);
             }
         }
     }
@@ -56,16 +66,22 @@ public:
             Node* current_tail = tail_.load(std::memory_order_acquire);
             Node* head_next = current_head->next.load(std::memory_order_acquire);
 
-            if (current_head == head_.load(std::memory_order_relaxed)) {
+            if (current_head == head_.load(std::memory_order_acquire)) {
                 if (current_head == current_tail) {
                     if (!head_next) {
                         return nullptr;
                     } else {
-                        tail_.compare_exchange_strong(current_tail, head_next);
+                        tail_.compare_exchange_strong(current_tail,
+                                                      head_next,
+                                                      std::memory_order_release,
+                                                      std::memory_order_relaxed);
                     }
                 } else {
                     res = head_next->data;
-                    if (head_.compare_exchange_strong(current_head, head_next)) {
+                    if (head_.compare_exchange_strong(current_head,
+                                                      head_next,
+                                                      std::memory_order_release,
+                                                      std::memory_order_relaxed)) {
                         delete current_head;
                         break;
                     }
